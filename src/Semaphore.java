@@ -1,5 +1,6 @@
 import java.util.ArrayList;
-import java.util.List;
+import java.util.Random;
+import java.util.Scanner;
 import java.util.concurrent.Semaphore;
 
 //public class Semaphore {
@@ -20,37 +21,17 @@ enum DeviceType {
 }
 
 class Device extends Thread {
-    private String name;
+    private String deviceName;
     private DeviceType type;
     private Router router;
     private int index;
-    Semaphore semaphore;
 
-    public Device(String name, DeviceType type, Router router) {
-        this.router = router;
-        this.name = name;
-        this.type = type;
+    public String getDeviceName() {
+        return deviceName;
     }
 
-    @Override
-    public void run() {
-
-        router.addDevice(this);
-        System.out.println("before connection " + name + " at index " + index);
-        //router.connect();
-        System.out.println("after connection " + name + " at index " + index);
-        try {
-            Thread.sleep(100);
-        } catch (Exception e) {
-
-        }
-        // Wait random time.
-        // Do some activity.
-        // Wait random time.
-        router.resetConnection(index);
-        System.out.println("after release " + name + " at index " + index);
-        router.release();
-
+    public void setDeviceName(String deviceName) {
+        this.deviceName = deviceName;
     }
 
     public DeviceType getType() {
@@ -65,38 +46,71 @@ class Device extends Thread {
         this.index = index;
     }
 
+    public Device(String deviceName, DeviceType type, Router router) {
+        this.router = router;
+        this.deviceName = deviceName;
+        this.type = type;
+    }
+
+    @Override
+    public void run() {
+        router.addDevice(this);
+        login();
+        try {
+            Thread.sleep((new Random()).nextInt(100, 1000));
+        } catch (Exception e) {
+
+        }
+        performOnlineActivity();
+        try {
+            Thread.sleep((new Random()).nextInt(100, 1000));
+        } catch (Exception e) {
+
+        }
+        router.resetConnection(index);
+        logout();
+        router.release();
+    }
+
+    public void login() {
+        System.out.println("- Connection " + (index + 1) + ": " + deviceName + " Login");
+    }
+
+    public void performOnlineActivity() {
+        System.out.println("- Connection " + (index + 1) + ": " + deviceName + " Performs Online Activity");
+    }
+
     public void logout() {
+        System.out.println("- Connection " + (index + 1) + ": " + deviceName + " Logged out");
 
     }
 }
 
 class Router {
-    Device[] devices = new Device[2];
-    Semaphore semaphore = new Semaphore(2);
+    Device[] devices;
+    Semaphore semaphore;
+    int connectionsNum;
 
-    int idx = 0;
-
-    public Router() {
-        for (int i = 0; i < 2; i++) {
+    public Router(int connectionsNum) {
+        this.devices = new Device[connectionsNum];
+        this.semaphore = new Semaphore(connectionsNum);
+        this.connectionsNum = connectionsNum;
+        for (int i = 0; i < connectionsNum; i++) {
             devices[i] = null;
         }
     }
 
-    public void addDevice(Device d) {
-        try {
-
-            semaphore.acquire();
-        } catch (Exception e) {
-
-        }
-        for (int i = 0; i < 2; i++) {
+    public void addDevice(Device curD) {
+        connect();
+        //System.out.println("(" + curD.getName() + ") (" + curD.getType() + "arrived");
+        for (int i = 0; i < connectionsNum; i++) {
             if (devices[i] == null) {
-                devices[i] = d;
-                d.setIndex(i);
+                devices[i] = curD;
+                curD.setIndex(i);
+                System.out.println("- Connection " + (i + 1) + ": " + curD.getDeviceName() + " Occupied");
                 break;
             }
         }
-
     }
 
     public void resetConnection(int i) {
@@ -105,11 +119,8 @@ class Router {
 
     public void connect() {
         try {
-            for (Device d : devices) {
-                d.start();
-            }
+            // System.out.println("(" + curD.getName() + ") (" + curD.getType() + "arrived and waiting");
             semaphore.acquire();
-
         } catch (Exception e) {
 
         }
@@ -125,16 +136,42 @@ class Router {
 }
 
 class Network {
-    public static void main(String args[]) {
-        Router router = new Router();
-
-        Device d1 = new Device("d1", DeviceType.PC, router);
-        Device d2 = new Device("d2", DeviceType.Mobile, router);
-        Device d3 = new Device("d3", DeviceType.PC, router);
-        d1.start();
-        d2.start();
-        d3.start();
-
-
+    public static void main(String[] args) {
+        Scanner myScanner = new Scanner(System.in);
+        System.out.println("What is the number of WI-FI Connections?");
+        int connectionsNum = myScanner.nextInt();
+        myScanner.nextLine();
+        System.out.println("What is the number of devices Clients want to connect?");
+        int devicesNum = myScanner.nextInt();
+        myScanner.nextLine();
+        Router router = new Router(connectionsNum);
+        ArrayList<Device> devices = new ArrayList<>();
+        for (int i = 0; i < devicesNum; i++) {
+            String deviceInfo = myScanner.nextLine();
+            String[] info = deviceInfo.split(" ");
+            DeviceType deviceType = null;
+            switch (info[1]) {
+                case "Mobile": {
+                    deviceType = DeviceType.Mobile;
+                    break;
+                }
+                case "PC": {
+                    deviceType = DeviceType.PC;
+                    break;
+                }
+                case "Tablet": {
+                    deviceType = DeviceType.Tablet;
+                    break;
+                }
+                default: {
+                    System.out.println("Invalid Type!");
+                    return;
+                }
+            }
+            devices.add(new Device(info[0], deviceType, router));
+        }
+        for (Device device : devices) {
+            device.start();
+        }
     }
 }
