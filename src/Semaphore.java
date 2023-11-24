@@ -1,3 +1,4 @@
+import java.io.*;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.Scanner;
@@ -15,12 +16,24 @@ import java.util.concurrent.Semaphore;
 //        notify();
 //    }
 //}
-
+class WriteToFile {
+    public void write(String fileName, String str)
+    {
+        try {
+            BufferedWriter out = new BufferedWriter(new FileWriter(fileName, true));
+            out.write(str);
+            out.close();
+        } catch (IOException e) {
+            System.out.println("exception occurred" + e);
+        }
+    }
+}
 enum DeviceType {
     Mobile, PC, Tablet
 }
 
 class Device extends Thread {
+    WriteToFile writeToFile = new WriteToFile();
     private String deviceName;
     private DeviceType type;
     private Router router;
@@ -54,39 +67,58 @@ class Device extends Thread {
 
     @Override
     public void run() {
-        router.addDevice(this);
-        login();
+        try {
+            router.addDevice(this);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        try {
+            login();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
         try {
             Thread.sleep((new Random()).nextInt(100, 1000));
         } catch (Exception e) {
 
         }
-        performOnlineActivity();
+        try {
+            performOnlineActivity();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
         try {
             Thread.sleep((new Random()).nextInt(100, 1000));
         } catch (Exception e) {
 
         }
         router.resetConnection(index);
-        logout();
+        try {
+            logout();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
         router.release();
     }
 
-    public void login() {
-        System.out.println("- Connection " + (index + 1) + ": " + deviceName + " Login");
+    public void login() throws IOException {
+        String text = "- Connection " + (index + 1) + ": " + deviceName + " Login\n";
+        writeToFile.write("logs.txt", text);
     }
 
-    public void performOnlineActivity() {
-        System.out.println("- Connection " + (index + 1) + ": " + deviceName + " Performs Online Activity");
+    public void performOnlineActivity() throws IOException {
+        String text = "- Connection " + (index + 1) + ": " + deviceName + " Performs Online Activity\n";
+        writeToFile.write("logs.txt", text);
     }
 
-    public void logout() {
-        System.out.println("- Connection " + (index + 1) + ": " + deviceName + " Logged out");
-
+    public void logout() throws IOException {
+        String text = "- Connection " + (index + 1) + ": " + deviceName + " Logged Out\n";
+        writeToFile.write("logs.txt", text);
     }
 }
 
 class Router {
+    WriteToFile writeToFile = new WriteToFile();
     Device[] devices;
     Semaphore semaphore;
     int connectionsNum;
@@ -100,14 +132,15 @@ class Router {
         }
     }
 
-    public void addDevice(Device curD) {
+    public void addDevice(Device curD) throws IOException {
         connect();
         //System.out.println("(" + curD.getName() + ") (" + curD.getType() + "arrived");
         for (int i = 0; i < connectionsNum; i++) {
             if (devices[i] == null) {
                 devices[i] = curD;
                 curD.setIndex(i);
-                System.out.println("- Connection " + (i + 1) + ": " + curD.getDeviceName() + " Occupied");
+                String text = "- Connection " + (i + 1) + ": " + curD.getDeviceName() + " Occupied\n";
+                writeToFile.write("logs.txt", text);
                 break;
             }
         }
@@ -136,7 +169,18 @@ class Router {
 }
 
 class Network {
-    public static void main(String[] args) {
+    private static File file;
+    private static void createFile() throws IOException {
+        file = new File("logs.txt");
+        file.createNewFile();
+        // empty files content
+        PrintWriter writer = new PrintWriter(file);
+        writer.print("");
+        writer.close();
+    }
+
+    public static void main(String[] args) throws IOException {
+        createFile();
         Scanner myScanner = new Scanner(System.in);
         System.out.println("What is the number of WI-FI Connections?");
         int connectionsNum = myScanner.nextInt();
