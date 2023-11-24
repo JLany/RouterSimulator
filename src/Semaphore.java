@@ -1,5 +1,6 @@
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Locale;
 import java.util.Random;
 import java.util.Scanner;
 import java.util.concurrent.Semaphore;
@@ -194,16 +195,17 @@ class Network {
             String deviceInfo = myScanner.nextLine();
             String[] info = deviceInfo.split(" ");
             DeviceType deviceType = null;
+            info[1] = info[1].toLowerCase();
             switch (info[1]) {
-                case "Mobile": {
+                case "mobile": {
                     deviceType = DeviceType.Mobile;
                     break;
                 }
-                case "PC": {
+                case "pc": {
                     deviceType = DeviceType.PC;
                     break;
                 }
-                case "Tablet": {
+                case "tablet": {
                     deviceType = DeviceType.Tablet;
                     break;
                 }
