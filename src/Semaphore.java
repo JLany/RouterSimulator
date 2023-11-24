@@ -17,14 +17,14 @@ class Semaphore {
 
         size--;
         if (size < 0) {
-            writer.write("logs.txt", "(" + device.getDeviceName() + ") (" + device.getType() + ") arrived and waiting\n");
+            writer.write("logs.txt", "- (" + device.getDeviceName() + ") (" + device.getType() + ") arrived and waiting\n");
             try {
                 wait();
             } catch (InterruptedException ignored) {
 
             }
         } else {
-            writer.write("logs.txt", "(" + device.getDeviceName() + ") (" + device.getType() + ") arrived\n");
+            writer.write("logs.txt", "- (" + device.getDeviceName() + ") (" + device.getType() + ") arrived\n");
         }
     }
 
@@ -102,9 +102,6 @@ class Device extends Thread {
         } catch (Exception e) {
 
         }
-
-        // I am not sure about the correctness of this piece.
-        // Shouldn't it be one operation with release()?
 
         logout();
 
