@@ -1,22 +1,39 @@
+import javax.print.attribute.standard.PrinterURI;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.Locale;
 import java.util.Random;
 import java.util.Scanner;
-import java.util.concurrent.Semaphore;
 
-//public class Semaphore {
-//    private int value;
-//
-//
-//    public void do() {
-//        Object.wait();
-//    }
-//    // => th1 | th2 | th3 | th4
-//    public void release() {
-//        notify();
-//    }
-//}
+class Semaphore {
+    private int size;
+
+    public Semaphore(int size) {
+        this.size = size;
+    }
+
+    public synchronized void acquire(Device device) {
+        WriteToFile writer = new WriteToFile();
+
+        size--;
+        if (size < 0) {
+            writer.write("logs.txt", "(" + device.getDeviceName() + ") (" + device.getType() + ") arrived and waiting\n");
+            try {
+                wait();
+            } catch (InterruptedException ignored) {
+
+            }
+        } else {
+            writer.write("logs.txt", "(" + device.getDeviceName() + ") (" + device.getType() + ") arrived\n");
+        }
+    }
+
+    public synchronized void release() {
+        size++;
+        notify();
+    }
+}
+
 class WriteToFile {
     public void write(String fileName, String str)
     {
@@ -68,51 +85,43 @@ class Device extends Thread {
 
     @Override
     public void run() {
-        try {
-            router.addDevice(this);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        try {
-            login();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        router.connect(this);
+
+        login();
+
         try {
             Thread.sleep((new Random()).nextInt(100, 1000));
         } catch (Exception e) {
 
         }
-        try {
-            performOnlineActivity();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+
+        performOnlineActivity();
+
         try {
             Thread.sleep((new Random()).nextInt(100, 1000));
         } catch (Exception e) {
 
         }
-        router.resetConnection(index);
-        try {
-            logout();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        router.release();
+
+        // I am not sure about the correctness of this piece.
+        // Shouldn't it be one operation with release()?
+
+        logout();
+
+        router.release(index);
     }
 
-    public void login() throws IOException {
+    public void login() {
         String text = "- Connection " + (index + 1) + ": " + deviceName + " Login\n";
         writeToFile.write("logs.txt", text);
     }
 
-    public void performOnlineActivity() throws IOException {
+    public void performOnlineActivity() {
         String text = "- Connection " + (index + 1) + ": " + deviceName + " Performs Online Activity\n";
         writeToFile.write("logs.txt", text);
     }
 
-    public void logout() throws IOException {
+    public void logout() {
         String text = "- Connection " + (index + 1) + ": " + deviceName + " Logged Out\n";
         writeToFile.write("logs.txt", text);
     }
@@ -133,9 +142,13 @@ class Router {
         }
     }
 
-    public void addDevice(Device curD) throws IOException {
-        connect();
-        //System.out.println("(" + curD.getName() + ") (" + curD.getType() + "arrived");
+    public void resetConnection(int i) {
+        devices[i] = null;
+    }
+
+    public void connect(Device curD) {
+        semaphore.acquire(curD);
+
         for (int i = 0; i < connectionsNum; i++) {
             if (devices[i] == null) {
                 devices[i] = curD;
@@ -147,25 +160,10 @@ class Router {
         }
     }
 
-    public void resetConnection(int i) {
-        devices[i] = null;
-    }
+    public void release(int index) {
+        resetConnection(index);
 
-    public void connect() {
-        try {
-            // System.out.println("(" + curD.getName() + ") (" + curD.getType() + "arrived and waiting");
-            semaphore.acquire();
-        } catch (Exception e) {
-
-        }
-    }
-
-    public void release() {
-        try {
-            semaphore.release();
-        } catch (Exception e) {
-
-        }
+        semaphore.release();
     }
 }
 
